@@ -1,0 +1,38 @@
+name: Import M300 Dual PCB photographs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-hardware-photos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Copy and verify photo archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p hardware/photos
+          SRC="https://raw.githubusercontent.com/MarcinKowalik-AGH/Zortrax-m300-Klipper/main/hardware/M300_Dual/photos"
+          curl -fL --retry 3 --retry-all-errors "$SRC/M300_Dual_Photos_21_PNG_GitHub_compact.zip" -o hardware/photos/M300_Dual_Photos_21_PNG_GitHub_compact.zip
+          echo "cd41cecc17b8090a58867699e0c3630d6a5c30da71d25021bb52941721da4103  hardware/photos/M300_Dual_Photos_21_PNG_GitHub_compact.zip" | sha256sum -c -
+          unzip -tqq hardware/photos/M300_Dual_Photos_21_PNG_GitHub_compact.zip
+          test "$(unzip -Z -1 hardware/photos/M300_Dual_Photos_21_PNG_GitHub_compact.zip | grep -Ec '^IMG_[[:digit:]]{4}\.png$')" -eq 21
+          curl -fL --retry 3 "$SRC/contact_sheet.png" -o hardware/photos/contact_sheet.png
+          file hardware/photos/contact_sheet.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hardware/photos/M300_Dual_Photos_21_PNG_GitHub_compact.zip hardware/photos/contact_sheet.png
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: import verified M300 Dual photo archive"
+            git push
+          fi
